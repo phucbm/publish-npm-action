@@ -1,0 +1,226 @@
+name: 'Publish NPM Package on Release'
+description: 'Automatically build, test, and publish NPM packages when a GitHub release is published'
+author: 'phucbm'
+
+branding:
+  icon: 'package'
+  color: 'blue'
+
+inputs:
+  npm-token:
+    description: 'NPM authentication token'
+    required: true
+  github-token:
+    description: 'GitHub token for repository access'
+    required: false
+    default: ${{ github.token }}
+  node-version:
+    description: 'Node.js version to use'
+    required: false
+    default: '18'
+  pnpm-version:
+    description: 'PNPM version to use'
+    required: false
+    default: '8'
+  build-command:
+    description: 'Build command to run'
+    required: false
+    default: 'pnpm build'
+  install-command:
+    description: 'Install command to run'
+    required: false
+    default: 'pnpm install --no-frozen-lockfile'
+  test-command:
+    description: 'Test command to run'
+    required: false
+    default: 'pnpm test'
+  publish-access:
+    description: 'NPM publish access level'
+    required: false
+    default: 'public'
+  skip-tests:
+    description: 'Skip running tests even if test script exists'
+    required: false
+    default: 'false'
+  output-dir:
+    description: 'Output directory for built files (e.g., dist, build, lib)'
+    required: false
+    default: 'dist/'
+  target-branch:
+    description: 'Branch to push updated files to'
+    required: false
+    default: 'main'
+  commit-files:
+    description: 'Additional files/patterns to commit (space-separated)'
+    required: false
+    default: ''
+
+outputs:
+  package-name:
+    description: 'Name of the published package'
+    value: ${{ steps.package_info.outputs.package_name }}
+  version:
+    description: 'Version that was published'
+    value: ${{ steps.package_info.outputs.version }}
+  npm-url:
+    description: 'NPM package URL'
+    value: 'https://www.npmjs.com/package/${{ steps.package_info.outputs.package_name }}'
+  tests-run:
+    description: 'Whether tests were executed'
+    value: ${{ steps.check_test.outputs.has_test }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: ${{ inputs.pnpm-version }}
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: 'pnpm'
+        registry-url: 'https://registry.npmjs.org'
+
+    - name: Install dependencies
+      shell: bash
+      run: ${{ inputs.install-command }}
+
+    - name: Check if test script exists
+      id: check_test
+      shell: bash
+      run: |
+        # Check if test script exists in package.json
+        TEST_SCRIPT=$(node -p "
+          try {
+            const pkg = require('./package.json');
+            pkg.scripts && pkg.scripts.test && pkg.scripts.test !== 'echo \"Error: no test specified\" && exit 1' ? 'true' : 'false';
+          } catch (e) {
+            'false';
+          }
+        ")
+        echo "has_test=${TEST_SCRIPT}" >> $GITHUB_OUTPUT
+        echo "📋 Test script available: ${TEST_SCRIPT}"
+
+    - name: Run tests
+      if: steps.check_test.outputs.has_test == 'true' && inputs.skip-tests != 'true'
+      shell: bash
+      run: |
+        echo "🧪 Running tests..."
+        ${{ inputs.test-command }}
+        echo "✅ All tests passed"
+
+    - name: Skip tests
+      if: steps.check_test.outputs.has_test == 'false' || inputs.skip-tests == 'true'
+      shell: bash
+      run: |
+        if [ "${{ inputs.skip-tests }}" == "true" ]; then
+          echo "⏭️ Tests skipped by user configuration"
+        else
+          echo "⏭️ No test script found, skipping tests"
+        fi
+
+    - name: Extract version and package info
+      id: package_info
+      shell: bash
+      run: |
+        # Get the tag name from the release (e.g., v1.2.3)
+        TAG_NAME="${{ github.event.release.tag_name }}"
+        
+        # Remove 'v' prefix if present (v1.2.3 → 1.2.3)
+        VERSION=${TAG_NAME#v}
+        
+        # Get package name from package.json
+        PACKAGE_NAME=$(node -p "require('./package.json').name")
+        
+        echo "version=${VERSION}" >> $GITHUB_OUTPUT
+        echo "package_name=${PACKAGE_NAME}" >> $GITHUB_OUTPUT
+        echo "📦 Package: ${PACKAGE_NAME}"
+        echo "📦 Version to publish: ${VERSION}"
+
+    - name: Update package.json version
+      shell: bash
+      run: |
+        # Update package.json with the release version
+        npm version ${{ steps.package_info.outputs.version }} --no-git-tag-version
+        echo "✅ Updated package.json to version ${{ steps.package_info.outputs.version }}"
+
+    - name: Build package
+      shell: bash
+      run: |
+        echo "🏗️ Building package..."
+        ${{ inputs.build-command }}
+        echo "✅ Build completed"
+
+    - name: Commit and push updated files
+      shell: bash
+      run: |
+        # Configure git
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        
+        # Add standard files
+        git add package.json ${{ inputs.output-dir }}
+        
+        # Add additional files if specified
+        if [ -n "${{ inputs.commit-files }}" ]; then
+          echo "📁 Adding additional files: ${{ inputs.commit-files }}"
+          git add ${{ inputs.commit-files }}
+        fi
+        
+        # Check if there are changes to commit
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "🔖 Release v${{ steps.package_info.outputs.version }} - Update package.json and build files"
+          git push origin ${{ inputs.target-branch }}
+          echo "✅ Pushed updated files to ${{ inputs.target-branch }} branch"
+        fi
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+
+    - name: Verify npm authentication
+      shell: bash
+      run: |
+        if [ -z "${{ inputs.npm-token }}" ]; then
+          echo "❌ NPM_TOKEN is not provided"
+          echo "Please provide your npm token as input:"
+          echo "1. Go to https://www.npmjs.com → Profile → Access Tokens"
+          echo "2. Create 'Automation' token with 'Publish' permission"
+          echo "3. Add to GitHub: Settings → Secrets → Actions → NPM_TOKEN"
+          echo "4. Use it in your workflow: npm-token: \${{ secrets.NPM_TOKEN }}"
+          exit 1
+        else
+          echo "✅ NPM_TOKEN is provided"
+          # Test authentication
+          npm whoami || echo "Authentication will be tested during publish"
+        fi
+      env:
+        NODE_AUTH_TOKEN: ${{ inputs.npm-token }}
+
+    - name: Publish to npm
+      shell: bash
+      run: |
+        echo "📦 Publishing to npm..."
+        
+        # Verify authentication
+        npm whoami || echo "Not authenticated yet"
+        
+        # Publish package
+        npm publish --access ${{ inputs.publish-access }}
+        echo "✅ Successfully published to npm"
+      env:
+        NODE_AUTH_TOKEN: ${{ inputs.npm-token }}
+
+    - name: Success notification
+      shell: bash
+      run: |
+        echo "🎉 Successfully published ${{ steps.package_info.outputs.package_name }}@${{ steps.package_info.outputs.version }}"
+        echo ""
+        echo "📦 Package is now available:"
+        echo "   • npm: https://www.npmjs.com/package/${{ steps.package_info.outputs.package_name }}"
+        echo "   • CDN: https://unpkg.com/${{ steps.package_info.outputs.package_name }}@${{ steps.package_info.outputs.version }}"
+        echo ""
+        echo "🚀 Demo: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
