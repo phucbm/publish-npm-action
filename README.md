@@ -30,11 +30,11 @@ name: Publish on Release
 
 on:
   release:
-    types: [published]
+    types: [ published ]  # Triggers when you publish a release through GitHub UI
 
 permissions:
-  contents: write
-  packages: write
+  contents: write  # To push updated files back to main
+  packages: write  # For GitHub packages (optional)
 
 jobs:
   publish:
@@ -43,12 +43,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: main  # Always checkout main branch, not the tag
           token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
+          fetch-depth: 0  # Fetch all history
 
       - name: Publish NPM Package
-        uses: phucbm/publish-npm-action@v1
+        uses: phucbm/publish-npm-action@v1  # Docs https://github.com/phucbm/publish-npm-action
         with:
           npm-token: ${{ secrets.NPM_TOKEN }}
 ```

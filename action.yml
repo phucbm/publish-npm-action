@@ -148,11 +148,17 @@ runs:
         echo "✅ Updated package.json to version ${{ steps.package_info.outputs.version }}"
 
     - name: Build package
+      if: inputs.build-command != ''
       shell: bash
       run: |
         echo "🏗️ Building package..."
         ${{ inputs.build-command }}
         echo "✅ Build completed"
+
+    - name: Skip build
+      if: inputs.build-command == ''
+      shell: bash
+      run: echo "⏭️ No build command specified, skipping build step"
 
     - name: Commit and push updated files
       shell: bash
@@ -219,8 +225,5 @@ runs:
       run: |
         echo "🎉 Successfully published ${{ steps.package_info.outputs.package_name }}@${{ steps.package_info.outputs.version }}"
         echo ""
-        echo "📦 Package is now available:"
-        echo "   • npm: https://www.npmjs.com/package/${{ steps.package_info.outputs.package_name }}"
-        echo "   • CDN: https://unpkg.com/${{ steps.package_info.outputs.package_name }}@${{ steps.package_info.outputs.version }}"
-        echo ""
-        echo "🚀 Demo: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
+        echo "📦 Package is now available at:"
+        echo "   https://www.npmjs.com/package/${{ steps.package_info.outputs.package_name }}"
