@@ -7,14 +7,17 @@
 A GitHub Action that automatically builds, tests, and publishes NPM packages when you create a GitHub release.
 
 ## Features
-
-- 🚀 **Automatic Publishing**: Triggers on GitHub release creation
-- 🧪 **Smart Testing**: Automatically detects and runs tests if available
-- 📦 **Version Management**: Syncs package.json version with release tag
-- 🔄 **Git Integration**: Commits updated files back to main branch
-- ⚙️ **Highly Configurable**: Customize commands, versions, and behavior
-- 🔐 **Secure**: Uses your NPM token securely
-
+```
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│    SETUP    │───▶│ VALIDATION  │───▶│    BUILD    │───▶│   PUBLISH   │
+└─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘
+       │                   │                   │                   │
+       ▼                   ▼                   ▼                   ▼
+   Install deps        Auto-detect         Execute build       Update version
+   Configure Node      test scripts        commands or skip    Commit artifacts
+                       Run if found                            Publish to NPM
+                       Skip if missing                         Success notify
+```
 ## Quick Start
 
 1. **Add NPM Token to Secrets**
@@ -123,13 +126,27 @@ All available options (enable only what you need):
 
 ## How It Works
 
-1. **Setup**: Installs Node.js, PNPM, and dependencies
-2. **Test**: Automatically detects and runs tests (if available)
-3. **Version**: Updates package.json with the release tag version
-4. **Build**: Runs your build command
-5. **Commit**: Pushes updated files back to main branch
-6. **Publish**: Publishes to NPM with authentication
-7. **Notify**: Shows success message with package URLs
+```
+📋 SETUP PHASE
+   └── Install dependencies with your preferred package manager
+   └── Configure Node.js environment
+
+🧪 VALIDATION PHASE  
+   └── Auto-detect test scripts
+   └── Run tests only if they exist
+   └── Skip gracefully if no tests found
+
+🏗️ BUILD PHASE
+   └── Execute custom build commands
+   └── Skip build entirely if not needed
+   └── Support any build system
+
+📤 PUBLISH PHASE
+   └── Update package.json version
+   └── Commit build artifacts  
+   └── Publish securely to NPM
+   └── Notify success with package URL
+```
 
 ## Requirements
 
