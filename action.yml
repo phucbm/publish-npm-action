@@ -196,7 +196,7 @@ runs:
           echo "1. Go to https://www.npmjs.com → Profile → Access Tokens"
           echo "2. Create 'Automation' token with 'Publish' permission"
           echo "3. Add to GitHub: Settings → Secrets → Actions → NPM_TOKEN"
-          echo "4. Use it in your workflow: npm-token: {{secrets.NPM_TOKEN}}"
+          echo "4. Use it in your workflow: npm-token: NPM_TOKEN"
           exit 1
         else
           echo "✅ NPM_TOKEN is provided"
