@@ -72,6 +72,14 @@ outputs:
 runs:
   using: 'composite'
   steps:
+    - name: Action Version Info
+      shell: bash
+      run: |
+        echo "🚀 Running phucbm/publish-npm-action"
+        echo "📋 Version: ${{ github.action_ref }}"
+        echo "📦 Repository: ${{ github.action_repository }}"
+        echo "🔗 Source: https://github.com/${{ github.action_repository }}/tree/${{ github.action_ref }}"
+
     - name: Setup pnpm
       uses: pnpm/action-setup@v4
       with:
