@@ -126,15 +126,27 @@ runs:
       id: package_info
       shell: bash
       run: |
-        # Get the tag name from the release (e.g., v1.2.3)
-        TAG_NAME="${{ github.event.release.tag_name }}"
-        
+        echo "🔍 Determining version from release context..."
+        echo "Event name: ${{ github.event_name }}"
+
+        # Get the tag name from release event OR latest release
+        if [ "${{ github.event_name }}" = "release" ]; then
+          # Automatic trigger from release event
+          TAG_NAME="${{ github.event.release.tag_name }}"
+          echo "📦 Using version from release event: $TAG_NAME"
+        else
+          # Manual trigger or other - fetch latest release
+          echo "📦 Fetching latest release..."
+          TAG_NAME=$(gh release list --limit 1 --json tagName --jq '.[0].tagName')
+          echo "📦 Using version from latest release: $TAG_NAME"
+        fi
+
         # Remove 'v' prefix if present (v1.2.3 → 1.2.3)
         VERSION=${TAG_NAME#v}
-        
+
         # Get package name from package.json
         PACKAGE_NAME=$(node -p "require('./package.json').name")
-        
+
         echo "version=${VERSION}" >> $GITHUB_OUTPUT
         echo "package_name=${PACKAGE_NAME}" >> $GITHUB_OUTPUT
         echo "📦 Package: ${PACKAGE_NAME}"
