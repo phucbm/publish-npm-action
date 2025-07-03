@@ -125,6 +125,8 @@ runs:
     - name: Extract version and package info
       id: package_info
       shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
         echo "🔍 Determining version from release context..."
         echo "Event name: ${{ github.event_name }}"
