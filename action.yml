@@ -220,7 +220,7 @@ runs:
           echo "  1. Go to https://www.npmjs.com → Profile → Access Tokens"
           echo "  2. Create an 'Automation' token with 'Publish' permission"
           echo "  3. Add to GitHub: Settings → Secrets → Actions → NPM_TOKEN"
-          echo "  4. Pass it in your workflow: npm-token: \${{ secrets.NPM_TOKEN }}"
+          echo "  4. Pass it in your workflow: npm-token: (your NPM_TOKEN secret)"
           echo ""
           echo "Option 2 — OIDC trusted publishing (no token needed):"
           echo "  1. Configure this repo as a trusted publisher on npmjs.com"
