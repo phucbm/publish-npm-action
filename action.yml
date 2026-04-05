@@ -85,6 +85,16 @@ runs:
         cache: 'pnpm'
         registry-url: 'https://registry.npmjs.org'
 
+    - name: Configure npmrc for OIDC
+      if: inputs.npm-token == ''
+      shell: bash
+      run: |
+        # actions/setup-node writes _authToken=${NODE_AUTH_TOKEN} to .npmrc even when
+        # NODE_AUTH_TOKEN is unset. An empty _authToken entry blocks OIDC trusted
+        # publishing, so remove it to let npm negotiate the OIDC token automatically.
+        npm config delete //registry.npmjs.org/:_authToken || true
+        echo "✅ Removed _authToken from .npmrc for OIDC trusted publishing"
+
     - name: Install dependencies
       shell: bash
       run: ${{ inputs.install-command }}
