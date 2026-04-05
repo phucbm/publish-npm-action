@@ -89,11 +89,14 @@ runs:
       if: inputs.npm-token == ''
       shell: bash
       run: |
-        # actions/setup-node writes _authToken=${NODE_AUTH_TOKEN} to .npmrc even when
-        # NODE_AUTH_TOKEN is unset. An empty _authToken entry blocks OIDC trusted
-        # publishing, so remove it to let npm negotiate the OIDC token automatically.
-        npm config delete //registry.npmjs.org/:_authToken || true
-        echo "✅ Removed _authToken from .npmrc for OIDC trusted publishing"
+        # actions/setup-node writes _authToken=${NODE_AUTH_TOKEN} into the file at
+        # $NPM_CONFIG_USERCONFIG (/home/runner/work/_temp/.npmrc). When NODE_AUTH_TOKEN
+        # is unset that line expands to empty, which blocks npm from using OIDC.
+        # Remove it directly from that file so npm can negotiate the OIDC token.
+        if [ -n "${NPM_CONFIG_USERCONFIG}" ] && [ -f "${NPM_CONFIG_USERCONFIG}" ]; then
+          sed -i '/_authToken/d' "${NPM_CONFIG_USERCONFIG}"
+          echo "✅ Removed _authToken from ${NPM_CONFIG_USERCONFIG} for OIDC trusted publishing"
+        fi
 
     - name: Install dependencies
       shell: bash
