@@ -8,8 +8,9 @@ branding:
 
 inputs:
   npm-token:
-    description: 'NPM authentication token'
-    required: true
+    description: 'NPM authentication token. Leave empty to use OIDC trusted publishing instead.'
+    required: false
+    default: ''
   github-token:
     description: 'GitHub token for repository access'
     required: false
@@ -205,18 +206,27 @@ runs:
     - name: Verify npm authentication
       shell: bash
       run: |
-        if [ -z "${{ inputs.npm-token }}" ]; then
-          echo "❌ NPM_TOKEN is not provided"
-          echo "Please provide your npm token as input:"
-          echo "1. Go to https://www.npmjs.com → Profile → Access Tokens"
-          echo "2. Create 'Automation' token with 'Publish' permission"
-          echo "3. Add to GitHub: Settings → Secrets → Actions → NPM_TOKEN"
-          echo "4. Use it in your workflow: npm-token: NPM_TOKEN"
-          exit 1
-        else
-          echo "✅ NPM_TOKEN is provided"
-          # Test authentication
+        if [ -n "${{ inputs.npm-token }}" ]; then
+          echo "✅ Using npm token authentication"
           npm whoami || echo "Authentication will be tested during publish"
+        elif [ -n "${ACTIONS_ID_TOKEN_REQUEST_URL}" ]; then
+          echo "✅ Using OIDC trusted publishing"
+          echo "ℹ️  Make sure 'id-token: write' is set in your workflow permissions"
+          echo "ℹ️  Make sure this repo is configured as a trusted publisher on npmjs.com"
+        else
+          echo "❌ No authentication method found."
+          echo ""
+          echo "Option 1 — npm token:"
+          echo "  1. Go to https://www.npmjs.com → Profile → Access Tokens"
+          echo "  2. Create an 'Automation' token with 'Publish' permission"
+          echo "  3. Add to GitHub: Settings → Secrets → Actions → NPM_TOKEN"
+          echo "  4. Pass it in your workflow: npm-token: \${{ secrets.NPM_TOKEN }}"
+          echo ""
+          echo "Option 2 — OIDC trusted publishing (no token needed):"
+          echo "  1. Configure this repo as a trusted publisher on npmjs.com"
+          echo "  2. Add 'id-token: write' to your workflow permissions"
+          echo "  3. Docs: https://docs.npmjs.com/trusted-publishers"
+          exit 1
         fi
       env:
         NODE_AUTH_TOKEN: ${{ inputs.npm-token }}
@@ -225,12 +235,11 @@ runs:
       shell: bash
       run: |
         echo "📦 Publishing to npm..."
-        
-        # Verify authentication
-        npm whoami || echo "Not authenticated yet"
-        
-        # Publish package
-        npm publish --access ${{ inputs.publish-access }}
+        if [ -n "${{ inputs.npm-token }}" ]; then
+          npm publish --access ${{ inputs.publish-access }}
+        else
+          npm publish --access ${{ inputs.publish-access }} --provenance
+        fi
         echo "✅ Successfully published to npm"
       env:
         NODE_AUTH_TOKEN: ${{ inputs.npm-token }}

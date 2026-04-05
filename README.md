@@ -64,11 +64,51 @@ jobs:
    - Publish the release
    - Watch the action automatically publish to NPM! 🎉
 
+## OIDC Trusted Publishing (Recommended)
+
+Instead of a long-lived `NPM_TOKEN`, you can use [npm trusted publishers](https://docs.npmjs.com/trusted-publishers) with OIDC — no token stored in secrets.
+
+**One-time setup on npmjs.com:**
+- Go to your package → Settings → Trusted Publishers
+- Add GitHub Actions, specifying your repo and workflow filename
+
+**Workflow (no `npm-token` needed):**
+
+```yaml
+name: Publish on Release
+
+on:
+  release:
+    types: [ published ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write  # Required for OIDC
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Publish NPM Package
+        uses: phucbm/publish-npm-action@v1  # Docs https://github.com/phucbm/publish-npm-action
+        # no npm-token needed — OIDC is used automatically
+```
+
+Provenance attestations are published automatically when using OIDC.
+
 ## Inputs
 
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
-| `npm-token` | NPM authentication token | ✅ Yes | - |
+| `npm-token` | NPM authentication token. Omit to use OIDC trusted publishing instead. | ❌ No | - |
 | `github-token` | GitHub token for repository access | ❌ No | `${{ github.token }}` |
 | `node-version` | Node.js version to use | ❌ No | `18` |
 | `pnpm-version` | PNPM version to use | ❌ No | `8` |
@@ -162,8 +202,8 @@ All available options (enable only what you need):
 - If your `package.json` version matches the release tag, the action will still proceed correctly — it uses `--allow-same-version` to avoid errors in this case.
 
 **NPM Authentication Failed**
-- Ensure your NPM token has "Automation" type with "Publish" permission
-- Verify the token is correctly added to GitHub Secrets
+- *Using token:* Ensure your NPM token has "Automation" type with "Publish" permission and is correctly added to GitHub Secrets
+- *Using OIDC:* Ensure `id-token: write` is set in your workflow permissions and this repo is configured as a trusted publisher on npmjs.com
 
 **Build Fails**
 - Check your build command in package.json
