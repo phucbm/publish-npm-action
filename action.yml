@@ -203,16 +203,21 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
 
-    - name: Verify npm authentication
+    - name: Verify npm authentication (token)
+      if: inputs.npm-token != ''
       shell: bash
       run: |
-        if [ -n "${{ inputs.npm-token }}" ]; then
-          echo "✅ Using npm token authentication"
-          npm whoami || echo "Authentication will be tested during publish"
-        elif [ -n "${ACTIONS_ID_TOKEN_REQUEST_URL}" ]; then
+        echo "✅ Using npm token authentication"
+        npm whoami || echo "Authentication will be tested during publish"
+      env:
+        NODE_AUTH_TOKEN: ${{ inputs.npm-token }}
+
+    - name: Verify npm authentication (OIDC)
+      if: inputs.npm-token == ''
+      shell: bash
+      run: |
+        if [ -n "${ACTIONS_ID_TOKEN_REQUEST_URL}" ]; then
           echo "✅ Using OIDC trusted publishing"
-          echo "ℹ️  Make sure 'id-token: write' is set in your workflow permissions"
-          echo "ℹ️  Make sure this repo is configured as a trusted publisher on npmjs.com"
         else
           echo "❌ No authentication method found."
           echo ""
@@ -228,21 +233,24 @@ runs:
           echo "  3. Docs: https://docs.npmjs.com/trusted-publishers"
           exit 1
         fi
-      env:
-        NODE_AUTH_TOKEN: ${{ inputs.npm-token }}
 
-    - name: Publish to npm
+    - name: Publish to npm (token)
+      if: inputs.npm-token != ''
       shell: bash
       run: |
         echo "📦 Publishing to npm..."
-        if [ -n "${{ inputs.npm-token }}" ]; then
-          npm publish --access ${{ inputs.publish-access }}
-        else
-          npm publish --access ${{ inputs.publish-access }} --provenance
-        fi
+        npm publish --access ${{ inputs.publish-access }}
         echo "✅ Successfully published to npm"
       env:
         NODE_AUTH_TOKEN: ${{ inputs.npm-token }}
+
+    - name: Publish to npm (OIDC)
+      if: inputs.npm-token == ''
+      shell: bash
+      run: |
+        echo "📦 Publishing to npm via OIDC trusted publishing..."
+        npm publish --access ${{ inputs.publish-access }} --provenance
+        echo "✅ Successfully published to npm"
 
     - name: Success notification
       shell: bash
