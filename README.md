@@ -34,6 +34,7 @@ name: Publish on Release
 on:
   release:
     types: [ published ]  # Triggers when you publish a release through GitHub UI
+  workflow_dispatch:       # Enables manual trigger via GitHub web
 
 permissions:
   contents: write  # To push updated files back to main
@@ -54,6 +55,7 @@ jobs:
         uses: phucbm/publish-npm-action@v1  # Docs https://github.com/phucbm/publish-npm-action
         with:
           npm-token: ${{ secrets.NPM_TOKEN }}
+          skip-tests: ${{ github.event.inputs.skip-tests || 'false' }}
 ```
 
 3. **Create a Release**
@@ -155,6 +157,9 @@ All available options (enable only what you need):
 - Repository must use semantic versioning for releases (e.g., `v1.2.3`)
 
 ## Troubleshooting
+
+**Version Already Set in package.json**
+- If your `package.json` version matches the release tag, the action will still proceed correctly — it uses `--allow-same-version` to avoid errors in this case.
 
 **NPM Authentication Failed**
 - Ensure your NPM token has "Automation" type with "Publish" permission

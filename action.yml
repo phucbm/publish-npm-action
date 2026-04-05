@@ -158,7 +158,7 @@ runs:
       shell: bash
       run: |
         # Update package.json with the release version
-        npm version ${{ steps.package_info.outputs.version }} --no-git-tag-version
+        npm version ${{ steps.package_info.outputs.version }} --no-git-tag-version --allow-same-version
         echo "✅ Updated package.json to version ${{ steps.package_info.outputs.version }}"
 
     - name: Build package
