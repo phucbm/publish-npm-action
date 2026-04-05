@@ -249,6 +249,8 @@ runs:
       shell: bash
       run: |
         echo "📦 Publishing to npm via OIDC trusted publishing..."
+        echo "⬆️ Upgrading npm to latest (11.5.1+ required for OIDC)..."
+        npm install -g npm@latest
         npm publish --access ${{ inputs.publish-access }} --provenance
         echo "✅ Successfully published to npm"
 
