@@ -4,41 +4,37 @@
 [![github license](https://badgen.net/github/license/phucbm/publish-npm-action?icon=github)](https://github.com/phucbm/publish-npm-action/blob/main/LICENSE)
 [![Made in Vietnam](https://raw.githubusercontent.com/webuild-community/badge/master/svg/made.svg)](https://webuild.community)
 
-A GitHub Action that automatically builds, tests, and publishes NPM packages when you create a GitHub release.
+A GitHub Action that automatically builds, tests, and publishes your NPM package whenever you create a GitHub release.
 
-## Features
-```
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│    SETUP    │───▶│ VALIDATION  │───▶│    BUILD    │───▶│   PUBLISH   │
-└─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘
-       │                   │                   │                   │
-       ▼                   ▼                   ▼                   ▼
-   Install deps        Auto-detect         Execute build       Update version
-   Configure Node      test scripts        commands or skip    Commit artifacts
-                       Run if found                            Publish to NPM
-                       Skip if missing                         Success notify
-```
-## Quick Start
+---
 
-1. **Add NPM Token to Secrets**
-   - Go to [npmjs.com](https://www.npmjs.com) → Profile → Access Tokens
-   - Create an "Automation" token with "Publish" permission
-   - Add it to GitHub: Settings → Secrets → Actions → `NPM_TOKEN`
+## Setup
 
-2. **Create Workflow File**
-   Create `.github/workflows/publish.yml`:
+There are two ways to authenticate with NPM. Pick one:
+
+- **OIDC Trusted Publishing** *(recommended)* — no token stored anywhere, uses GitHub's identity directly
+- **NPM Token** — classic long-lived token stored as a GitHub secret
+
+---
+
+### Option A: OIDC Trusted Publishing
+
+#### Step 1 — Add the workflow file
+
+Create `.github/workflows/publish.yml` in your repo:
 
 ```yaml
-name: Publish on Release
+name: Build and Publish NPM package on release
 
 on:
   release:
     types: [ published ]  # Triggers when you publish a release through GitHub UI
-  workflow_dispatch:       # Enables manual trigger via GitHub web
+  workflow_dispatch:      # Enables manual trigger via GitHub web
 
 permissions:
   contents: write  # To push updated files back to main
   packages: write  # For GitHub packages (optional)
+  id-token: write  # Required for OIDC trusted publishing
 
 jobs:
   publish:
@@ -49,33 +45,43 @@ jobs:
         with:
           ref: main  # Always checkout main branch, not the tag
           token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0  # Fetch all history
+          fetch-depth: 0
 
       - name: Publish NPM Package
         uses: phucbm/publish-npm-action@v1  # Docs https://github.com/phucbm/publish-npm-action
         with:
-          npm-token: ${{ secrets.NPM_TOKEN }}
           skip-tests: ${{ github.event.inputs.skip-tests || 'false' }}
 ```
 
-3. **Create a Release**
-   - Go to your repo → Releases → Create a new release
-   - Tag version: `v1.0.0` (or any semantic version)
-   - Publish the release
-   - Watch the action automatically publish to NPM! 🎉
+#### Step 2 — Configure a trusted publisher on npmjs.com
 
-## OIDC Trusted Publishing (Recommended)
+1. Go to [npmjs.com](https://www.npmjs.com) and open your package page
+2. Click **Settings** → **Trusted Publishers** → **Add a publisher**
+3. Select **GitHub Actions** and fill in:
+   - **Owner**: your GitHub username or org
+   - **Repository**: your repo name
+   - **Workflow filename**: `publish.yml`
+4. Save
 
-Instead of a long-lived `NPM_TOKEN`, you can use [npm trusted publishers](https://docs.npmjs.com/trusted-publishers) with OIDC — no token stored in secrets.
+> If you haven't published the package yet, do a manual `npm publish` first so the package exists, then add the trusted publisher.
 
-**One-time setup on npmjs.com:**
-- Go to your package → Settings → Trusted Publishers
-- Add GitHub Actions, specifying your repo and workflow filename
+#### Step 3 — Create a release
 
-**Workflow (no `npm-token` needed):**
+1. Go to your repo on GitHub → **Releases** → **Create a new release**
+2. Set a tag like `v1.0.0` (semantic version, must start with `v`)
+3. Click **Publish release**
+4. The action runs automatically and publishes to NPM
+
+---
+
+### Option B: NPM Token
+
+#### Step 1 — Add the workflow file
+
+Create `.github/workflows/publish.yml` in your repo:
 
 ```yaml
-name: Publish on Release
+name: Build and Publish NPM package on release
 
 on:
   release:
@@ -84,7 +90,7 @@ on:
 
 permissions:
   contents: write
-  id-token: write  # Required for OIDC
+  packages: write
 
 jobs:
   publish:
@@ -99,27 +105,65 @@ jobs:
 
       - name: Publish NPM Package
         uses: phucbm/publish-npm-action@v1  # Docs https://github.com/phucbm/publish-npm-action
-        # no npm-token needed — OIDC is used automatically
+        with:
+          npm-token: ${{ secrets.NPM_TOKEN }}
+          skip-tests: ${{ github.event.inputs.skip-tests || 'false' }}
 ```
 
-Provenance attestations are published automatically when using OIDC.
+#### Step 2 — Create an NPM token
+
+1. Go to [npmjs.com](https://www.npmjs.com) → click your avatar → **Access Tokens**
+2. Click **Generate New Token** → choose **Automation**
+3. Copy the token
+
+#### Step 3 — Add the token to GitHub Secrets
+
+1. Go to your repo on GitHub → **Settings** → **Secrets and variables** → **Actions**
+2. Click **New repository secret**
+3. Name: `NPM_TOKEN`, Value: paste the token you copied
+4. Save
+
+#### Step 4 — Create a release
+
+1. Go to your repo → **Releases** → **Create a new release**
+2. Set a tag like `v1.0.0` (semantic version, must start with `v`)
+3. Click **Publish release**
+4. The action runs automatically and publishes to NPM
+
+---
+
+## How It Works
+
+```
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│    SETUP    │───▶│ VALIDATION  │───▶│    BUILD    │───▶│   PUBLISH   │
+└─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘
+       │                   │                   │                   │
+       ▼                   ▼                   ▼                   ▼
+   Install deps        Auto-detect         Execute build       Update version
+   Configure Node      test scripts        commands or skip    Commit artifacts
+                       Run if found                            Publish to NPM
+                       Skip if missing                         Success notify
+```
+
+---
 
 ## Inputs
 
-| Input | Description | Required | Default |
-|-------|-------------|----------|---------|
-| `npm-token` | NPM authentication token. Omit to use OIDC trusted publishing instead. | ❌ No | - |
-| `github-token` | GitHub token for repository access | ❌ No | `${{ github.token }}` |
-| `node-version` | Node.js version to use | ❌ No | `18` |
-| `pnpm-version` | PNPM version to use | ❌ No | `8` |
-| `build-command` | Build command to run | ❌ No | `pnpm build` |
-| `install-command` | Install command to run | ❌ No | `pnpm install --no-frozen-lockfile` |
-| `test-command` | Test command to run | ❌ No | `pnpm test` |
-| `publish-access` | NPM publish access level | ❌ No | `public` |
-| `skip-tests` | Skip running tests even if available | ❌ No | `false` |
-| `output-dir` | Output directory for built files | ❌ No | `dist/` |
-| `target-branch` | Branch to push updated files to | ❌ No | `main` |
-| `commit-files` | Additional files/patterns to commit | ❌ No | `` |
+| Input | Description | Default |
+|-------|-------------|---------|
+| `npm-token` | NPM token. Omit to use OIDC trusted publishing. | — |
+| `github-token` | GitHub token for repo access | `${{ github.token }}` |
+| `node-version` | Node.js version | `18` |
+| `pnpm-version` | PNPM version | `8` |
+| `build-command` | Build command (use `''` to skip build) | `pnpm build` |
+| `install-command` | Install command | `pnpm install --no-frozen-lockfile` |
+| `test-command` | Test command | `pnpm test` |
+| `publish-access` | NPM access level | `public` |
+| `skip-tests` | Skip running tests | `false` |
+| `output-dir` | Output directory for built files | `dist/` |
+| `target-branch` | Branch to push updated files to | `main` |
+| `commit-files` | Extra files/patterns to commit | — |
 
 ## Outputs
 
@@ -130,6 +174,8 @@ Provenance attestations are published automatically when using OIDC.
 | `npm-url` | NPM package URL |
 | `tests-run` | Whether tests were executed |
 
+---
+
 ## Advanced Usage
 
 All available options (enable only what you need):
@@ -139,20 +185,21 @@ All available options (enable only what you need):
   uses: phucbm/publish-npm-action@v1
   with:
     npm-token: ${{ secrets.NPM_TOKEN }}
-    # github-token: ${{ secrets.CUSTOM_TOKEN }}        # Custom GitHub token, default is ${{ github.token }}
-    # node-version: '20'                               # Node.js version, default is '18'
-    # pnpm-version: '9'                                # PNPM version, default is '8'
-    # build-command: 'npm run build:prod'              # Build command, default is 'pnpm build'
-    # install-command: 'npm ci'                        # Install command, default is 'pnpm install --no-frozen-lockfile'
-    # test-command: 'npm run test:ci'                  # Test command, default is 'pnpm test'
-    # publish-access: 'restricted'                     # NPM access level, default is 'public'
-    # skip-tests: 'true'                               # Skip tests, default is 'false'
-    # output-dir: 'build/'                             # Output directory, default is 'dist/'
-    # target-branch: 'develop'                         # Target branch, default is 'main'
-    # commit-files: 'CHANGELOG.md docs/ types/'        # Additional files to commit, default is ''
+    # github-token: ${{ secrets.CUSTOM_TOKEN }}
+    # node-version: '20'
+    # pnpm-version: '9'
+    # build-command: 'npm run build:prod'
+    # install-command: 'npm ci'
+    # test-command: 'npm run test:ci'
+    # publish-access: 'restricted'
+    # skip-tests: 'true'
+    # output-dir: 'build/'
+    # target-branch: 'develop'
+    # commit-files: 'CHANGELOG.md docs/ types/'
 ```
 
-### Using Outputs
+### Using outputs
+
 ```yaml
 - name: Publish NPM Package
   id: publish
@@ -166,59 +213,24 @@ All available options (enable only what you need):
     echo "Available at: ${{ steps.publish.outputs.npm-url }}"
 ```
 
-## How It Works
-
-```
-📋 SETUP PHASE
-   └── Install dependencies with your preferred package manager
-   └── Configure Node.js environment
-
-🧪 VALIDATION PHASE  
-   └── Auto-detect test scripts
-   └── Run tests only if they exist
-   └── Skip gracefully if no tests found
-
-🏗️ BUILD PHASE
-   └── Execute custom build commands
-   └── Skip build entirely if not needed
-   └── Support any build system
-
-📤 PUBLISH PHASE
-   └── Update package.json version
-   └── Commit build artifacts  
-   └── Publish securely to NPM
-   └── Notify success with package URL
-```
-
-## Requirements
-
-- Your repository must have a `package.json` file
-- NPM token must be added to GitHub Secrets as `NPM_TOKEN`
-- Repository must use semantic versioning for releases (e.g., `v1.2.3`)
+---
 
 ## Troubleshooting
 
-**Version Already Set in package.json**
-- If your `package.json` version matches the release tag, the action will still proceed correctly — it uses `--allow-same-version` to avoid errors in this case.
+**Version already set in package.json** — The action uses `--allow-same-version` so this is fine.
 
-**NPM Authentication Failed**
-- *Using token:* Ensure your NPM token has "Automation" type with "Publish" permission and is correctly added to GitHub Secrets
-- *Using OIDC:* Ensure `id-token: write` is set in your workflow permissions and this repo is configured as a trusted publisher on npmjs.com
+**NPM authentication failed**
+- *Token:* Check the token type is "Automation" with publish permission and the secret name is `NPM_TOKEN`
+- *OIDC:* Check `id-token: write` is in your workflow permissions and the trusted publisher is configured on npmjs.com with the exact workflow filename
 
-**Build Fails**
-- Check your build command in package.json
-- Customize `build-command` input if needed
+**Build fails** — Check your build script in `package.json`, or set `build-command` to match.
 
-**Tests Fail**
-- Fix your tests or use `skip-tests: 'true'` to skip them temporarily
+**Tests fail** — Fix the tests or set `skip-tests: 'true'` temporarily.
 
-**Permission Denied**
-- Ensure your workflow has `contents: write` permission
+**Permission denied** — Ensure `contents: write` is set in your workflow permissions.
+
+---
 
 ## License
 
 MIT License - feel free to use in your projects!
-
-## Contributing
-
-Issues and pull requests welcome!
