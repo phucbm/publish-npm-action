@@ -2,6 +2,7 @@
 
 [![github stars](https://badgen.net/github/stars/phucbm/publish-npm-action?icon=github)](https://github.com/phucbm/publish-npm-action/)
 [![github license](https://badgen.net/github/license/phucbm/publish-npm-action?icon=github)](https://github.com/phucbm/publish-npm-action/blob/main/LICENSE)
+[![github marketplace](https://badgen.net/badge/github/marketplace/blue?icon=github)](https://github.com/marketplace/actions/publish-npm-package-on-release)
 [![Made in Vietnam](https://raw.githubusercontent.com/webuild-community/badge/master/svg/made.svg)](https://webuild.community)
 
 A GitHub Action that automatically builds, tests, and publishes your NPM package whenever you create a GitHub release.
